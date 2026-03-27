@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Time Series Prediction Dashboard for CENACE using XGBoost</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.7.0/chart.min.js"></script>
+    <style>
+        :root {
+            --primary-color: #2563eb;
+            --secondary-color: #1e40af;
+            --background-color: #f8fafc;
+            --card-background: #ffffff;
+            --text-primary: #1e293b;
+            --text-secondary: #475569;
+            --border-color: #e2e8f0;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        }
+
+        body {
+            background-color: var(--background-color);
+            color: var(--text-primary);
+            line-height: 1.5;
+        }
+
+        .header {
+            background-color: var(--card-background);
+            padding: 1.5rem;
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .header h1 {
+            font-size: 1.875rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 2rem auto;
+            padding: 0 1.5rem;
+            display: grid;
+            grid-template-columns: 300px 1fr;
+            gap: 2rem;
+        }
+
+        .sidebar {
+            background-color: var(--card-background);
+            padding: 1.5rem;
+            border-radius: 0.5rem;
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+        }
+
+        .main-content {
+            background-color: var(--card-background);
+            padding: 1.5rem;
+            border-radius: 0.5rem;
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+        }
+
+        .input-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .input-group h3 {
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 0.75rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        label {
+            display: block;
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+        }
+
+        select, input {
+            width: 100%;
+            padding: 0.5rem;
+            border: 1px solid var(--border-color);
+            border-radius: 0.375rem;
+            font-size: 0.875rem;
+            color: var(--text-primary);
+            background-color: var(--card-background);
+            transition: border-color 0.15s ease-in-out;
+        }
+
+        select:focus, input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+        }
+
+        .button-group {
+            display: flex;
+            gap: 0.75rem;
+            margin-top: 1.5rem;
+        }
+
+        button {
+            flex: 1;
+            padding: 0.625rem 1.25rem;
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: white;
+            background-color: var(--primary-color);
+            border: none;
+            border-radius: 0.375rem;
+            cursor: pointer;
+            transition: background-color 0.15s ease-in-out;
+        }
+
+        button:hover:not(:disabled) {
+            background-color: var(--secondary-color);
+        }
+
+        button:disabled {
+            background-color: var(--text-secondary);
+            cursor: not-allowed;
+        }
+
+        .metrics {
+            margin-top: 1.5rem;
+            padding: 1rem;
+            background-color: var(--background-color);
+            border-radius: 0.375rem;
+        }
+
+        .metrics h3 {
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 0.75rem;
+        }
+
+        .metric-item {
+            display: inline-block;
+            padding: 0.5rem 1rem;
+            margin: 0.25rem;
+            background-color: var(--card-background);
+            border: 1px solid var(--border-color);
+            border-radius: 0.375rem;
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+        }
+
+        .metric-value {
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-left: 0.25rem;
+        }
+
+        #chart-container {
+            margin-top: 1.5rem;
+            padding: 1rem;
+            background-color: var(--background-color);
+            border-radius: 0.375rem;
+        }
+
+        .status-message {
+            margin-top: 1rem;
+            padding: 1rem;
+            border-radius: 0.375rem;
+            font-size: 0.875rem;
+        }
+
+        .success {
+            background-color: #dcfce7;
+            color: #166534;
+            border: 1px solid #86efac;
+        }
+
+        .error {
+            background-color: #fee2e2;
+            color: #991b1b;
+            border: 1px solid #fca5a5;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <h1>Time Series Prediction Dashboard for CENACE using XGBoost</h1>
+    </header>
+
+    <div class="container">
+        <aside class="sidebar">
+            <div class="input-group">
+                <h3>Area Selection</h3>
+                <label>Choose Area:</label>
+                <select id="area">
+                    <option value="">Loading areas...</option>
+                </select>
+            </div>
+            
+            <div class="input-group">
+                <h3>Training Period</h3>
+                <label>Start Date:</label>
+                <input type="datetime-local" id="train-start" step="3600">
+                
+                <label>End Date:</label>
+                <input type="datetime-local" id="train-end" step="3600">
+            </div>
+            
+            <div class="input-group">
+                <h3>Prediction Period</h3>
+                <label>Start Date:</label>
+                <input type="datetime-local" id="pred-start" step="3600">
+                
+                <label>End Date:</label>
+                <input type="datetime-local" id="pred-end" step="3600">
+            </div>
+            
+            <div class="button-group">
+                <button id="trainBtn" onclick="trainModel()">Train Model</button>
+                <button id="predictBtn" onclick="getPredictions()">Predict</button>
+            </div>
+
+            <div id="status-message"></div>
+        </aside>
+
+        <main class="main-content">
+            <div id="metrics" class="metrics" style="display: none;">
+                <h3>Model Performance Metrics</h3>
+                <div id="metrics-content"></div>
+            </div>
+            
+            <div id="chart-container">
+                <canvas id="predictionChart"></canvas>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        let chart = null;
+
+        window.onload = async function() {
+            try {
+                const response = await fetch('/data_info');
+                const info = await response.json();
+                
+                const areaSelect = document.getElementById('area');
+                areaSelect.innerHTML = info.areas.map(area => 
+                    `<option value="${area}">${area}</option>`
+                ).join('');
+                
+                const dateInputs = ['train-start', 'train-end', 'pred-start', 'pred-end'];
+                dateInputs.forEach(id => {
+                    const input = document.getElementById(id);
+                    input.min = info.min_date;
+                    input.max = info.max_date;
+                });
+                
+                document.getElementById('train-start').value = info.min_date;
+                document.getElementById('train-end').value = info.max_date;
+                document.getElementById('pred-start').value = info.min_date;
+                document.getElementById('pred-end').value = info.max_date;
+                
+            } catch (error) {
+                showStatus('Error loading data information', false);
+            }
+        }
+
+        function showStatus(message, isSuccess) {
+            const statusDiv = document.getElementById('status-message');
+            statusDiv.className = `status-message ${isSuccess ? 'success' : 'error'}`;
+            statusDiv.textContent = message;
+        }
+
+        function updateMetrics(metrics) {
+            const metricsDiv = document.getElementById('metrics');
+            const metricsContent = document.getElementById('metrics-content');
+            
+            metricsContent.innerHTML = `
+                <div class="metric-item">MSE: <span class="metric-value">${metrics.mse.toFixed(4)}</span></div>
+                <div class="metric-item">RMSE: <span class="metric-value">${metrics.rmse.toFixed(4)}</span></div>
+                <div class="metric-item">MAE: <span class="metric-value">${metrics.mae.toFixed(4)}</span></div>
+                <div class="metric-item">R²: <span class="metric-value">${metrics.r2.toFixed(4)}</span></div>
+            `;
+            
+            metricsDiv.style.display = 'block';
+        }
+
+        async function trainModel() {
+            const trainBtn = document.getElementById('trainBtn');
+            trainBtn.disabled = true;
+            
+            const data = {
+                area: document.getElementById('area').value,
+                start_date: document.getElementById('train-start').value,
+                end_date: document.getElementById('train-end').value
+            };
+
+            try {
+                const response = await fetch('/train', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(data)
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    showStatus('Model trained successfully!', true);
+                } else {
+                    showStatus(result.message || 'Error training model', false);
+                }
+            } catch (error) {
+                showStatus('Error training model', false);
+            } finally {
+                trainBtn.disabled = false;
+            }
+        }
+
+        async function getPredictions() {
+            const predictBtn = document.getElementById('predictBtn');
+            predictBtn.disabled = true;
+            
+            const data = {
+                area: document.getElementById('area').value,
+                start_date: document.getElementById('pred-start').value,
+                end_date: document.getElementById('pred-end').value
+            };
+
+            try {
+                const response = await fetch('/predict', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(data)
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    updateChart(result);
+                    updateMetrics(result.metrics);
+                    showStatus('Predictions generated successfully!', true);
+                } else {
+                    showStatus(result.message || 'Error getting predictions', false);
+                }
+            } catch (error) {
+                showStatus('Error getting predictions', false);
+            } finally {
+                predictBtn.disabled = false;
+            }
+        }
+
+        function updateChart(data) {
+            if (chart) {
+                chart.destroy();
+            }
+
+            const ctx = document.getElementById('predictionChart').getContext('2d');
+            chart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: data.timestamps.map(ts => new Date(ts).toLocaleString()),
+                    datasets: [
+                        {
+                            label: 'Predictions',
+                            data: data.predictions,
+                            borderColor: '#2563eb',
+                            backgroundColor: 'rgba(37, 99, 235, 0.1)',
+                            borderWidth: 1,
+                            tension: 0.1,
+                            fill: true,
+                            pointRadius: 0,
+                            pointHoverRadius: 4
+                        },
+                        {
+                            label: 'Actual Values',
+                            data: data.actual,
+                            borderColor: '#dc2626',
+                            backgroundColor: 'rgba(220, 38, 38, 0.1)',
+                            borderWidth: 1,
+                            tension: 0.1,
+                            fill: true,
+                            pointRadius: 0,
+                            pointHoverRadius: 4
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    interaction: {
+                        mode: 'index',
+                        intersect: false,
+                    },
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                            labels: {
+                                usePointStyle: true,
+                                padding: 20
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: false,
+                            title: {
+                                display: true,
+                                text: 'Value (MWh)',
+                                padding: {top: 10, bottom: 10}
+                            },
+                            grid: {
+                                display: true,
+                                drawBorder: false,
+                                color: 'rgba(0, 0, 0, 0.1)'
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Timestamp',
+                                padding: {top: 10, bottom: 10}
+                            },
+                            grid: {
+                                display: false
+                            }
+                        }
+                    }
+                }
+            });
+        }
+    </script>
+</body>
+</html>
