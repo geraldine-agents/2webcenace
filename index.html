@@ -253,7 +253,7 @@
 
         window.onload = async function() {
             try {
-                const response = await fetch('/data_info');
+                const response = await fetch('/energy/data_info');
                 const info = await response.json();
                 
                 const areaSelect = document.getElementById('area');
@@ -309,7 +309,7 @@
             };
 
             try {
-                const response = await fetch('/train', {
+                const response = await fetch('/energy/train', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -342,7 +342,7 @@
             };
 
             try {
-                const response = await fetch('/predict', {
+                const response = await fetch('/energy/predict', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
